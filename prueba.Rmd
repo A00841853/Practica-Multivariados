@@ -1,0 +1,18 @@
+---
+title: "Prueba"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introducción
+
+Documento de prueba para la práctica de análisis multivariado.
+
+# Código de ejemplo
+
+```{r}
+summary(iris)
+```
