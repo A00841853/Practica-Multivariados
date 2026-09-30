@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Simulacion Monte Carlo de AMD con movimiento browniano geometrico (GBM).
 
-Python >= 3.10; solo biblioteca estandar, sin instalaciones adicionales.
+Python >= 3.10. Instalar exportacion Excel: python -m pip install -r requirements.txt
+Cada ejecucion genera resumen.csv y analisis_amd.xlsx en la carpeta actual.
 Ejemplo (600 USD es un supuesto ilustrativo, NO una cotizacion actual):
     python amd_monte_carlo.py --s0 600
     python amd_monte_carlo.py --s0 600 --volatility 0.60 --seed 42 --csv resumen.csv
@@ -24,11 +25,12 @@ Las probabilidades dependen de los supuestos y no son pronosticos.
 Este ejercicio educativo NO es una recomendacion financiera.
 """
 import argparse
-import csv
 import math
 import random
 import sys
 from pathlib import Path
+
+from amd_report import export_reports
 
 DEFAULT_RETURNS = (-0.10, 0.10, 0.25, 0.40)
 DEFAULT_MONTHS = (1, 3, 6, 12)
@@ -123,8 +125,15 @@ def main(argv=None):
                         help="Simulaciones por escenario y horizonte.")
     parser.add_argument("--seed", type=int, default=42,
                         help="Semilla fija para reproducibilidad.")
-    parser.add_argument("--csv", type=Path, help="Ruta opcional para exportar resumen.")
+    parser.add_argument("--csv", type=Path, default=Path("resumen.csv"),
+                        help="Ruta CSV; predeterminado: resumen.csv.")
+    parser.add_argument("--xlsx", type=Path, default=Path("analisis_amd.xlsx"),
+                        help="Ruta Excel; predeterminado: analisis_amd.xlsx.")
     args = parser.parse_args(argv)
+    if args.csv.suffix.lower() != ".csv" or args.xlsx.suffix.lower() != ".xlsx":
+        parser.error("Usa una ruta .csv y otra .xlsx.")
+    if args.csv.resolve() == args.xlsx.resolve():
+        parser.error("Las rutas CSV y Excel deben ser distintas.")
     try:
         rows = simulate(args.s0, args.volatility, args.returns, args.months,
                         args.simulations, args.seed)
@@ -153,15 +162,12 @@ def main(argv=None):
     print(f"Maximo por fila: {0.5 / math.sqrt(args.simulations):.4%} "
           "(no incluye incertidumbre de los supuestos).")
 
-    if args.csv:
-        try:
-            with args.csv.open("w", newline="", encoding="utf-8") as handle:
-                writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
-                writer.writeheader()
-                writer.writerows(rows)
-        except OSError as exc:
-            parser.exit(1, f"No se pudo escribir el CSV: {exc}\n")
-        print(f"CSV guardado en {args.csv} (probabilidades como fracciones de 0 a 1).")
+    try:
+        export_reports(rows, args.csv, args.xlsx)
+    except (OSError, RuntimeError) as exc:
+        parser.exit(1, f"No se pudieron guardar ambos archivos: {exc}\n")
+    print(f"CSV guardado en {args.csv.resolve()} (probabilidades entre 0 y 1).")
+    print(f"Excel guardado en {args.xlsx.resolve()} (tablas y graficas).")
     return 0
 
 
